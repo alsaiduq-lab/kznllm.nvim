@@ -5,25 +5,14 @@ local M = {}
 M.OS_PATH_SEP = package.config:sub(1, 1)
 
 function M.join_path(paths)
-  return table.concat(paths, M.OS_PATH_SEP)
+  -- Always use forward slashes for minijinja-cli cross-platform compatibility
+  local path = table.concat(paths, '/')
+  return path:gsub('/+', '/')
 end
 
 local function get_plugin_dir()
-  -- Get the current file's path from debug info
-  local source = debug.getinfo(1, 'S').source:sub(2)
-
-  -- Split path into components
-  local parts = {}
-  for part in string.gmatch(source, '[^' .. M.OS_PATH_SEP .. ']+') do
-    table.insert(parts, part)
-  end
-
-  -- Remove last 3 components to get plugin root
-  for _ = 1, 3 do
-    table.remove(parts)
-  end
-
-  return M.OS_PATH_SEP .. M.join_path(parts)
+  -- Use absolute path from data directory for reliable template resolution
+  return (vim.fn.stdpath('data') .. '/lazy/kznllm.nvim'):gsub('\\', '/')
 end
 
 -- NOTE: this is a relative path meant to point at the template directory
@@ -124,7 +113,8 @@ function M.make_prompt_from_template(opts)
     error("Can't find minijinja-cli, download it from https://github.com/mitsuhiko/minijinja or add it to $PATH", 1)
   end
 
-  local prompt_template_path = opts.template_path
+  -- ensure absolute path and normalize for cross-platform compatibility
+  local prompt_template_path = vim.fn.fnamemodify(opts.template_path, ':p'):gsub('\\', '/')
   local json_data = vim.json.encode(opts.prompt_args)
 
   local active_job = vim
